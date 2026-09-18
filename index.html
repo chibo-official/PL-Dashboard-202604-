@@ -889,6 +889,9 @@ const CHIBO_API_URL = "https://script.google.com/macros/s/AKfycbyRlAeCZtMyiK-Y-p
       if (payload && payload.kpi && payload.kpi.length) {
         window.__FRESH_KPI__ = payload.kpi;
       }
+      if (payload && payload.customer && payload.customer.length) {
+        window.__FRESH_CUSTOMER__ = payload.customer;
+      }
       if (payload && payload.generatedAt) {
         window.__CHIBO_DATA_GENERATED_AT__ = payload.generatedAt;
       }
