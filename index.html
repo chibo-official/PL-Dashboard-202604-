@@ -367,11 +367,11 @@
 
 
   /* ===== 予算対比タブ ===== */
-  .budget-table th { background: #3a0000; color: white; padding: 7px 8px; font-size: 11px; white-space: nowrap; cursor: pointer; user-select: none; }
+  .budget-table th { background: #3a0000; color: white; padding: 5px 6px; font-size: 10.5px; white-space: nowrap; cursor: pointer; user-select: none; }
   .budget-table th:hover { background: #5a0000; }
   .budget-table th.th-group { background: #1a0000; font-size: 10px; letter-spacing:0.05em; text-align:center; }
-  .budget-table td { padding: 7px 8px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; border-bottom: 1px solid var(--border); }
-  .budget-table td:first-child { text-align:left; font-weight:600; position:sticky; left:0; background:white; z-index:1; min-width:130px; }
+  .budget-table td { padding: 5px 6px; font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .budget-table td:first-child { text-align:left; font-weight:600; position:sticky; left:0; background:white; z-index:1; min-width:110px; }
   .budget-table tr:hover td { filter: brightness(0.96); }
   .budget-table tr.summary-row td { font-weight:700; }
   .budget-table tr.summary-row td:first-child { color: var(--enji); }
@@ -389,8 +389,8 @@
 
   .diff-positive { color: var(--positive); font-weight:600; }
   .diff-negative { color: var(--negative); font-weight:600; }
-  .budget-cell { text-align:right; min-width:80px; }
-  .budget-cell-lg { text-align:right; min-width:90px; }
+  .budget-cell { text-align:right; min-width:64px; }
+  .budget-cell-lg { text-align:right; min-width:72px; }
 
 
   /* ===== 総評タブ ===== */
@@ -915,6 +915,14 @@ const KPI_DEFS = [
   { key: '営業利益', label: '営業利益', color: '#1a6b3a', bgColor: '#edf7f1' },
   { key: '貢献利益Ⅱ', label: '貢献利益Ⅱ', color: '#7a4f1a', bgColor: '#fef6e4' },
   { key: '経常利益', label: '経常利益', color: '#4a1a6b', bgColor: '#f4edf9' },
+];
+// 「当月／累計 詳細数値」テーブル専用の表示項目（他のKPIカードやグラフには影響しません）
+const DETAIL_TABLE_DEFS = [
+  { key: '粗利益', label: '粗利益' },
+  { key: '販管費', label: '販管費' },
+  { key: '貢献利益Ⅰ', label: '貢献利益Ⅰ' },
+  { key: '貢献利益Ⅱ', label: '貢献利益Ⅱ' },
+  { key: '営業利益', label: '営業利益' },
 ];
 
 let currentMonth = '4月';
@@ -1542,7 +1550,7 @@ function renderDetail(storeName) {
           <th>前年差</th>
         </tr></thead>
         <tbody>
-          ${KPI_DEFS.map(k => {
+          ${DETAIL_TABLE_DEFS.map(k => {
             const a = data[k.key+'_実績'], b = data[k.key+'_予算'], p = data[k.key+'_前年'];
             const db = a != null && b ? a - b : null;
             const dp = a != null && p ? a - p : null;
@@ -1574,7 +1582,7 @@ function renderDetail(storeName) {
           <th>前年比</th>
         </tr></thead>
         <tbody>
-          ${KPI_DEFS.map(k => {
+          ${DETAIL_TABLE_DEFS.map(k => {
             const a = getCum(k.key,'実績'), b = getCum(k.key,'予算'), p = getCum(k.key,'前年');
             const db = a != null && b != null ? a - b : null;
             const dp = a != null && p != null ? a - p : null;
@@ -2437,9 +2445,12 @@ function budgetCell(actual, budget, isProfit) {
          `<td class="budget-cell ${pctCls}">${pct != null ? pSign + pct + '%' : '—'}</td>`;
 }
 
-function rateCell(actualRate, budgetRate) {
+function rateCell(actualRate, budgetRate, lastyearRate, isSingle) {
   // 原価率など率同士の比較（pp差を表示）
-  if (actualRate == null || budgetRate == null) return '<td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td>';
+  const emptyCells = isSingle
+    ? '<td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td>'
+    : '<td class="budget-cell">—</td><td class="budget-cell">—</td><td class="budget-cell">—</td>';
+  if (actualRate == null || budgetRate == null) return emptyCells;
   const diff = Math.round((actualRate - budgetRate) * 10) / 10;
   const sign = diff >= 0 ? '+' : '';
   // 原価率は低い方が良い（profit:false）→ 上昇がマイナス評価
@@ -2451,6 +2462,26 @@ function rateCell(actualRate, budgetRate) {
   else if (diff <= 2) pctCls = 'hm-neu';
   else if (diff <= 4) pctCls = 'hm-vm5';
   else pctCls = 'hm-vm10';
+  if (isSingle) {
+    const lyDiff = (lastyearRate != null) ? Math.round((actualRate - lastyearRate) * 10) / 10 : null;
+    const lySign = lyDiff!=null && lyDiff >= 0 ? '+' : '';
+    const lyDiffCls = lyDiff <= 0 ? 'diff-positive' : 'diff-negative';
+    let lyPctCls = '';
+    if (lyDiff != null) {
+      if (lyDiff <= -4) lyPctCls = 'hm-vp10';
+      else if (lyDiff <= -2) lyPctCls = 'hm-vp5';
+      else if (lyDiff <= 2) lyPctCls = 'hm-neu';
+      else if (lyDiff <= 4) lyPctCls = 'hm-vm5';
+      else lyPctCls = 'hm-vm10';
+    }
+    return `<td class="budget-cell">${actualRate}%</td>` +
+           `<td class="budget-cell" style="color:var(--text2)">${budgetRate}%</td>` +
+           `<td class="budget-cell ${pctCls}">${sign}${diff}pp</td>` +
+           `<td class="budget-cell ${diffCls}">${sign}${diff}pp</td>` +
+           `<td class="budget-cell" style="color:var(--text2)">${lastyearRate!=null?lastyearRate+'%':'—'}</td>` +
+           `<td class="budget-cell ${lyPctCls}">${lyDiff!=null?lySign+lyDiff+'pp':'—'}</td>` +
+           `<td class="budget-cell ${lyDiffCls}">${lyDiff!=null?lySign+lyDiff+'pp':'—'}</td>`;
+  }
   return `<td class="budget-cell">${actualRate}%</td>` +
          `<td class="budget-cell ${diffCls}">${sign}${diff}pp</td>` +
          `<td class="budget-cell ${pctCls}">${sign}${diff}pp</td>`;
@@ -2508,28 +2539,40 @@ function renderBudgetTable() {
   if (isSingle) {
     thead.innerHTML =
       '<tr>' +
-        '<th style="text-align:left;position:sticky;left:0;z-index:2;background:#1a0000;min-width:150px;cursor:pointer" onclick="budgetSortBy(\'store\')">' +
+        '<th style="text-align:left;position:sticky;left:0;z-index:2;background:#1a0000;min-width:120px;cursor:pointer" onclick="budgetSortBy(\'store\')">' +
           '店舗名<span class="sort-ind">' + (budgetSortCol==='store'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
         '</th>' +
-        '<th colspan="4" class="th-group">' + kpi.label + (isCum?'（累計）':'') + '</th>' +
+        '<th colspan="7" class="th-group">' + kpi.label + (isCum?'（累計）':'') + '</th>' +
       '</tr>' +
       '<tr>' +
         '<th style="position:sticky;left:0;background:#1a0000"></th>' +
-        '<th style="min-width:110px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_actual\')">' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_actual\')">' +
           '実績<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'%':'千円') + '</span>' +
           '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_actual'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
         '</th>' +
-        '<th style="min-width:110px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_budget\')">' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_budget\')">' +
           '予算<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'%':'千円') + '</span>' +
           '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_budget'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
         '</th>' +
-        '<th style="min-width:110px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_diff\')">' +
-          '差異額<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'千円') + '</span>' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_diff_pct\')">' +
+          '予算差異<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'%') + '</span>' +
+          '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_diff_pct'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
+        '</th>' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_diff\')">' +
+          '予算差異<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'千円') + '</span>' +
           '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_diff'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
         '</th>' +
-        '<th style="min-width:110px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_diff_pct\')">' +
-          '予算比<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'%') + '</span>' +
-          '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_diff_pct'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_lastyear\')">' +
+          '前年<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'%':'千円') + '</span>' +
+          '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_lastyear'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
+        '</th>' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_ly_diff_pct\')">' +
+          '前年差異<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'%') + '</span>' +
+          '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_ly_diff_pct'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
+        '</th>' +
+        '<th style="min-width:80px;cursor:pointer" onclick="budgetSortBy(\'' + kpi.key + '_ly_diff\')">' +
+          '前年差異<br><span style="font-size:10px;opacity:.7">' + (kpi.type==='rate'?'pp':'千円') + '</span>' +
+          '<span class="sort-ind">' + (budgetSortCol===kpi.key+'_ly_diff'?(budgetSortAsc?'▲':'▼'):'') + '</span>' +
         '</th>' +
       '</tr>';
   } else {
@@ -2556,22 +2599,35 @@ function renderBudgetTable() {
         const 粗利 = d['粗利益' + suffix + '実績'];
         const 売上予算 = d['売上高' + suffix + '予算'];
         const 粗利予算 = d['粗利益' + suffix + '予算'];
+        const 売上前年 = d['売上高' + suffix + '前年'];
+        const 粗利前年 = d['粗利益' + suffix + '前年'];
         const actualRate = (売上 && 粗利 != null) ? Math.round((1 - 粗利/売上)*1000)/10 : null;
         const budgetRate = (売上予算 && 粗利予算 != null) ? Math.round((1 - 粗利予算/売上予算)*1000)/10 : null;
+        const lastyearRate = (売上前年 && 粗利前年 != null) ? Math.round((1 - 粗利前年/売上前年)*1000)/10 : null;
         row[k.key+'_actual'] = actualRate;
         row[k.key+'_budget'] = budgetRate;
+        row[k.key+'_lastyear'] = lastyearRate;
         const diff = (actualRate!=null && budgetRate!=null) ? Math.round((actualRate-budgetRate)*10)/10 : null;
         row[k.key+'_diff'] = diff;
         row[k.key+'_diff_pct'] = diff;
+        const lyDiff = (actualRate!=null && lastyearRate!=null) ? Math.round((actualRate-lastyearRate)*10)/10 : null;
+        row[k.key+'_ly_diff'] = lyDiff;
+        row[k.key+'_ly_diff_pct'] = lyDiff;
       } else {
         const actual = d[k.key + suffix + '実績'];
         const budget = d[k.key + suffix + '予算'];
+        const lastyear = d[k.key + suffix + '前年'];
         row[k.key+'_actual'] = actual;
         row[k.key+'_budget'] = budget;
+        row[k.key+'_lastyear'] = lastyear;
         const diff = (actual!=null && budget!=null) ? actual - budget : null;
         const pct  = (diff!=null && budget!==0) ? Math.round(diff/Math.abs(budget)*1000)/10 : null;
         row[k.key+'_diff'] = diff;
         row[k.key+'_diff_pct'] = pct;
+        const lyDiff = (actual!=null && lastyear!=null) ? actual - lastyear : null;
+        const lyPct  = (lyDiff!=null && lastyear!==0) ? Math.round(lyDiff/Math.abs(lastyear)*1000)/10 : null;
+        row[k.key+'_ly_diff'] = lyDiff;
+        row[k.key+'_ly_diff_pct'] = lyPct;
       }
     });
     return row;
@@ -2597,6 +2653,10 @@ function renderBudgetTable() {
     avg[k.key+'_diff'] = dvals.length ? Math.round(dvals.reduce(function(a,b){return a+b;},0)*10)/10 : null;
     const pvals = stores.map(function(r){return r[k.key+'_diff_pct'];}).filter(function(v){return v!=null;});
     avg[k.key+'_diff_pct'] = pvals.length ? Math.round(pvals.reduce(function(a,b){return a+b;},0)/pvals.length*10)/10 : null;
+    const lydvals = stores.map(function(r){return r[k.key+'_ly_diff'];}).filter(function(v){return v!=null;});
+    avg[k.key+'_ly_diff'] = lydvals.length ? Math.round(lydvals.reduce(function(a,b){return a+b;},0)*10)/10 : null;
+    const lypvals = stores.map(function(r){return r[k.key+'_ly_diff_pct'];}).filter(function(v){return v!=null;});
+    avg[k.key+'_ly_diff_pct'] = lypvals.length ? Math.round(lypvals.reduce(function(a,b){return a+b;},0)/lypvals.length*10)/10 : null;
   });
 
   // ---- 行生成 ----
@@ -2621,17 +2681,26 @@ function renderBudgetTable() {
 
     visibleKpis.forEach(function(k) {
       if (k.type === 'rate') {
-        cells += rateCell(d[k.key+'_actual'], d[k.key+'_budget']);
+        cells += rateCell(d[k.key+'_actual'], d[k.key+'_budget'], d[k.key+'_lastyear'], isSingle);
       } else if (isSingle) {
-        const a=d[k.key+'_actual'], b=d[k.key+'_budget'], dv=d[k.key+'_diff'], p=d[k.key+'_diff_pct'];
+        const a=d[k.key+'_actual'], b=d[k.key+'_budget'], ly=d[k.key+'_lastyear'];
+        const dv=d[k.key+'_diff'], p=d[k.key+'_diff_pct'];
+        const lyDv=d[k.key+'_ly_diff'], lyP=d[k.key+'_ly_diff_pct'];
         const sign=dv!=null&&dv>=0?'+':'';
         const psign=p!=null&&p>=0?'+':'';
+        const lySign=lyDv!=null&&lyDv>=0?'+':'';
+        const lyPSign=lyP!=null&&lyP>=0?'+':'';
         const diffCls=k.profit?(dv>=0?'diff-positive':'diff-negative'):(dv<=0?'diff-positive':'diff-negative');
         const pCls=hmClass(p,k.profit);
+        const lyDiffCls=k.profit?(lyDv>=0?'diff-positive':'diff-negative'):(lyDv<=0?'diff-positive':'diff-negative');
+        const lyPCls=hmClass(lyP,k.profit);
         cells += '<td class="budget-cell-lg">' + (a!=null?a.toLocaleString():'—') + '</td>';
         cells += '<td class="budget-cell-lg" style="color:var(--text2)">' + (b!=null?b.toLocaleString():'—') + '</td>';
-        cells += '<td class="budget-cell-lg ' + diffCls + '">' + (dv!=null?sign+dv.toLocaleString():'—') + '</td>';
         cells += '<td class="budget-cell-lg ' + pCls + '">' + (p!=null?psign+p+'%':'—') + '</td>';
+        cells += '<td class="budget-cell-lg ' + diffCls + '">' + (dv!=null?sign+dv.toLocaleString():'—') + '</td>';
+        cells += '<td class="budget-cell-lg" style="color:var(--text2)">' + (ly!=null?ly.toLocaleString():'—') + '</td>';
+        cells += '<td class="budget-cell-lg ' + lyPCls + '">' + (lyP!=null?lyPSign+lyP+'%':'—') + '</td>';
+        cells += '<td class="budget-cell-lg ' + lyDiffCls + '">' + (lyDv!=null?lySign+lyDv.toLocaleString():'—') + '</td>';
       } else {
         cells += budgetCell(d[k.key+'_actual'], d[k.key+'_budget'], k.profit);
       }
@@ -2646,24 +2715,43 @@ function renderBudgetTable() {
   var avgCells = '<td style="position:sticky;left:0;background:#f4f0ec;z-index:1">店舗平均</td>';
   visibleKpis.forEach(function(k) {
     const a=avg[k.key+'_actual'], dv=avg[k.key+'_diff'], p=avg[k.key+'_diff_pct'];
+    const lyDv=avg[k.key+'_ly_diff'], lyP=avg[k.key+'_ly_diff_pct'];
     const sign=dv!=null&&dv>=0?'+':'';
     const psign=p!=null&&p>=0?'+':'';
+    const lySign=lyDv!=null&&lyDv>=0?'+':'';
+    const lyPSign=lyP!=null&&lyP>=0?'+':'';
     if (k.type === 'rate') {
       var pCls='';
       if(dv<=-4)pCls='hm-vp10';else if(dv<=-2)pCls='hm-vp5';else if(dv<=2)pCls='hm-neu';else if(dv<=4)pCls='hm-vm5';else pCls='hm-vm10';
       const diffCls=dv!=null&&dv<=0?'diff-positive':'diff-negative';
       avgCells += '<td class="budget-cell">' + (a!=null?a+'%':'—') + '</td>';
-      avgCells += '<td class="budget-cell ' + diffCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
-      avgCells += '<td class="budget-cell ' + pCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
-      if (isSingle) avgCells += '<td class="budget-cell"></td>';
+      if (isSingle) {
+        var lyPCls='';
+        if(lyDv<=-4)lyPCls='hm-vp10';else if(lyDv<=-2)lyPCls='hm-vp5';else if(lyDv<=2)lyPCls='hm-neu';else if(lyDv<=4)lyPCls='hm-vm5';else lyPCls='hm-vm10';
+        const lyDiffCls=lyDv!=null&&lyDv<=0?'diff-positive':'diff-negative';
+        avgCells += '<td class="budget-cell">—</td>';
+        avgCells += '<td class="budget-cell ' + pCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
+        avgCells += '<td class="budget-cell ' + diffCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
+        avgCells += '<td class="budget-cell">—</td>';
+        avgCells += '<td class="budget-cell ' + lyPCls + '">' + (lyDv!=null?lySign+lyDv+'pp':'—') + '</td>';
+        avgCells += '<td class="budget-cell ' + lyDiffCls + '">' + (lyDv!=null?lySign+lyDv+'pp':'—') + '</td>';
+      } else {
+        avgCells += '<td class="budget-cell ' + diffCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
+        avgCells += '<td class="budget-cell ' + pCls + '">' + (dv!=null?sign+dv+'pp':'—') + '</td>';
+      }
     } else {
       const diffCls=k.profit?(dv>=0?'diff-positive':'diff-negative'):(dv<=0?'diff-positive':'diff-negative');
       const pCls=hmClass(p,k.profit);
       if (isSingle) {
+        const lyDiffCls=k.profit?(lyDv>=0?'diff-positive':'diff-negative'):(lyDv<=0?'diff-positive':'diff-negative');
+        const lyPCls=hmClass(lyP,k.profit);
         avgCells += '<td class="budget-cell-lg">' + (a!=null?a.toLocaleString():'—') + '</td>';
         avgCells += '<td class="budget-cell-lg" style="color:var(--text2)">—</td>';
-        avgCells += '<td class="budget-cell-lg ' + diffCls + '">' + (dv!=null?sign+dv.toLocaleString():'—') + '</td>';
         avgCells += '<td class="budget-cell-lg ' + pCls + '">' + (p!=null?psign+p+'%':'—') + '</td>';
+        avgCells += '<td class="budget-cell-lg ' + diffCls + '">' + (dv!=null?sign+dv.toLocaleString():'—') + '</td>';
+        avgCells += '<td class="budget-cell-lg" style="color:var(--text2)">—</td>';
+        avgCells += '<td class="budget-cell-lg ' + lyPCls + '">' + (lyP!=null?lyPSign+lyP+'%':'—') + '</td>';
+        avgCells += '<td class="budget-cell-lg ' + lyDiffCls + '">' + (lyDv!=null?lySign+lyDv.toLocaleString():'—') + '</td>';
       } else {
         avgCells += '<td class="budget-cell">' + (a!=null?a.toLocaleString():'—') + '</td>';
         avgCells += '<td class="budget-cell ' + diffCls + '">' + (dv!=null?sign+dv.toLocaleString():'—') + '</td>';
